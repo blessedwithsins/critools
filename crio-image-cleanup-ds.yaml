@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: crio-image-cleanup
+  labels:
+    tier: management
+    app: crio-image-cleanup
+spec:
+  selector:
+    matchLabels:
+      name: crio-image-cleanup
+  template:
+    metadata:
+      labels:
+        name: crio-image-cleanup
+    spec:
+      containers:
+        - resources:
+            requests:
+              cpu: "50m"
+              memory: "50Mi"
+          securityContext:
+            privileged: true
+          image: critools.azurecr.io/critools:v1
+          imagePullPolicy: IfNotPresent
+          name: crio-image-cleanup
+          command: ["/bin/bash", "-c"]
+          args:
+            - >
+              while true; do
+                crictl images -q | xargs -n 1 crictl rmi 2>/dev/null;
+                sleep 86400;
+              done
+          volumeMounts:
+            - mountPath: /run/containerd/containerd.sock
+              name: containerd-volume
+      volumes:
+        - name: containerd-volume
+          hostPath:
+            path: /run/containerd/containerd.sock
